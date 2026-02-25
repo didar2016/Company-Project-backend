@@ -1,6 +1,7 @@
 ﻿import { Response } from 'express';
 import { Website, User } from '../models';
 import { AuthRequest, catchAsync, CustomError } from '../middleware';
+import { deleteImageFile, deleteMultipleImageFiles, deleteWebsiteFolder } from '../utils/fileStorage';
 
 // ========================
 // WEBSITE CRUD
@@ -139,6 +140,9 @@ export const deleteWebsite = catchAsync(async (req: AuthRequest, res: Response):
     });
   }
 
+  // Delete website image folder from public
+  deleteWebsiteFolder(website.name);
+
   await website.deleteOne();
 
   res.status(200).json({
@@ -238,7 +242,7 @@ export const getRooms = catchAsync(async (req: AuthRequest, res: Response): Prom
 // Add room to website
 export const addRoom = catchAsync(async (req: AuthRequest, res: Response): Promise<void> => {
   const websiteId = req.params.websiteId || req.websiteId;
-  const { name, description, maxOccupancy, bedType, size, basePrice, mainImage, discountPercentage, detailImages, images, amenities, features, servicesIncluded, isAvailable } = req.body;
+  const { name, description, maxOccupancy, bedType, size, basePrice, mainImage, discountPercentage, discountPrice, detailImages, images, amenities, features, servicesIncluded, popularFacilities, isAvailable } = req.body;
 
   const website = await Website.findById(websiteId);
   if (!website) {
@@ -264,7 +268,9 @@ export const addRoom = catchAsync(async (req: AuthRequest, res: Response): Promi
     amenities: amenities || [],
     features: features || [],
     servicesIncluded: servicesIncluded || [],
+    popularFacilities: popularFacilities || [],
     isAvailable: isAvailable !== undefined ? isAvailable : true,
+    discountPrice: discountPrice || 0,
   } as any);
 
   await website.save();
@@ -282,7 +288,8 @@ export const addRoom = catchAsync(async (req: AuthRequest, res: Response): Promi
 export const updateRoom = catchAsync(async (req: AuthRequest, res: Response): Promise<void> => {
   const { websiteId, roomId } = req.params;
   const wId = websiteId || req.websiteId;
-  const { name, description, maxOccupancy, bedType, size, basePrice, mainImage, discountPercentage, detailImages, images, amenities, features, servicesIncluded, isAvailable } = req.body;
+  const { name, description, maxOccupancy, bedType, size, basePrice, mainImage, discountPercentage, discountPrice,
+    detailImages, images, amenities, features, servicesIncluded, popularFacilities, isAvailable } = req.body;
 
   const website = await Website.findById(wId);
   if (!website) {
@@ -300,18 +307,29 @@ export const updateRoom = catchAsync(async (req: AuthRequest, res: Response): Pr
   if (bedType !== undefined) room.bedType = bedType;
   if (size !== undefined) room.size = size;
   if (basePrice !== undefined) room.basePrice = basePrice;
-  if (mainImage !== undefined) room.mainImage = mainImage;
+  if (discountPrice !== undefined) room.discountPrice = discountPrice;
+  if (mainImage !== undefined) {
+    // Clean up old image file if replaced
+    if (room.mainImage && room.mainImage !== mainImage) {
+      deleteImageFile(room.mainImage);
+    }
+    room.mainImage = mainImage;
+  }
   if (discountPercentage !== undefined) room.discountPercentage = discountPercentage;
   if (detailImages !== undefined) {
     if (detailImages.length > 10) {
       throw new CustomError('Maximum 10 detail images allowed', 400);
     }
+    // Clean up removed detail image files
+    const removedImages = (room.detailImages || []).filter((img: string) => !detailImages.includes(img));
+    deleteMultipleImageFiles(removedImages);
     room.detailImages = detailImages;
   }
   if (images !== undefined) room.images = images;
   if (amenities !== undefined) room.amenities = amenities;
   if (features !== undefined) room.features = features;
   if (servicesIncluded !== undefined) room.servicesIncluded = servicesIncluded;
+  if (popularFacilities !== undefined) room.popularFacilities = popularFacilities;
   if (isAvailable !== undefined) room.isAvailable = isAvailable;
 
   await website.save();
@@ -337,6 +355,11 @@ export const deleteRoom = catchAsync(async (req: AuthRequest, res: Response): Pr
   if (!room) {
     throw new CustomError('Room not found', 404);
   }
+
+  // Clean up image files
+  deleteImageFile(room.mainImage);
+  deleteMultipleImageFiles(room.detailImages || []);
+  deleteMultipleImageFiles(room.images || []);
 
   website.rooms = website.rooms.filter(r => r._id?.toString() !== roomId);
   await website.save();
@@ -369,7 +392,7 @@ export const getHeroSections = catchAsync(async (req: AuthRequest, res: Response
 // Upsert hero section (create or update by page type)
 export const upsertHeroSection = catchAsync(async (req: AuthRequest, res: Response): Promise<void> => {
   const websiteId = req.params.websiteId || req.websiteId;
-  const { page, image, text, subText, isActive } = req.body;
+  const { page, image, text, subText, detailsText, isActive } = req.body;
 
   const website = await Website.findById(websiteId);
   if (!website) {
@@ -380,9 +403,16 @@ export const upsertHeroSection = catchAsync(async (req: AuthRequest, res: Respon
   if (existingIdx >= 0) {
     // Update existing
     const hero = website.heroSections[existingIdx];
-    if (image !== undefined) hero.image = image;
+    if (image !== undefined) {
+      // Clean up old image file if replaced
+      if (hero.image && hero.image !== image) {
+        deleteImageFile(hero.image);
+      }
+      hero.image = image;
+    }
     if (text !== undefined) hero.text = text;
     if (subText !== undefined) hero.subText = subText;
+    if (detailsText !== undefined) hero.detailsText = detailsText;
     if (isActive !== undefined) hero.isActive = isActive;
   } else {
     // Create new
@@ -391,6 +421,7 @@ export const upsertHeroSection = catchAsync(async (req: AuthRequest, res: Respon
       image: image || '',
       text: text || '',
       subText: subText || '',
+      detailsText: detailsText || '',
       isActive: isActive !== undefined ? isActive : true,
     } as any);
   }
@@ -421,6 +452,9 @@ export const deleteHeroSection = catchAsync(async (req: AuthRequest, res: Respon
     throw new CustomError('Hero section not found', 404);
   }
 
+  // Clean up image file
+  deleteImageFile(hero.image);
+
   website.heroSections = website.heroSections.filter(h => h._id?.toString() !== heroId);
   await website.save();
 
@@ -440,10 +474,13 @@ export const getWebsiteByUniqueId = catchAsync(async (req: AuthRequest, res: Res
 
   const website = await Website.findOne({ uniqueId, isActive: true });
 
+  console.log('Public API - Get website by unique ID:', uniqueId, 'Found:', website);
+
   if (!website) {
     throw new CustomError('Website not found', 404);
   }
 
+  // Return comprehensive website data for public consumption
   res.status(200).json({
     success: true,
     data: {
@@ -454,6 +491,7 @@ export const getWebsiteByUniqueId = catchAsync(async (req: AuthRequest, res: Res
         theme: website.theme,
         settings: website.settings,
         seo: website.seo,
+        isActive: website.isActive,
       },
       hotelInfo: website.hotelInfo,
       rooms: website.rooms.filter(r => r.isAvailable),
@@ -462,6 +500,12 @@ export const getWebsiteByUniqueId = catchAsync(async (req: AuthRequest, res: Res
       facilities: website.facilities,
       reviews: website.reviews,
       siteSettings: website.siteSettings,
+      // Additional data that might be useful for the frontend
+      totalRooms: website.rooms.filter(r => r.isAvailable).length,
+      totalFacilities: website.facilities.length,
+      averageRating: website.reviews.length > 0 
+        ? website.reviews.reduce((sum, review) => sum + review.rating, 0) / website.reviews.length 
+        : 0,
     },
   });
 });
@@ -498,8 +542,20 @@ export const updateSiteSettings = catchAsync(async (req: AuthRequest, res: Respo
     (website as any).siteSettings = { logo: '', footerLogo: '', footerDescription: '' };
   }
 
-  if (logo !== undefined) website.siteSettings.logo = logo;
-  if (footerLogo !== undefined) website.siteSettings.footerLogo = footerLogo;
+  if (logo !== undefined) {
+    // Clean up old logo file if replaced
+    if (website.siteSettings.logo && website.siteSettings.logo !== logo) {
+      deleteImageFile(website.siteSettings.logo);
+    }
+    website.siteSettings.logo = logo;
+  }
+  if (footerLogo !== undefined) {
+    // Clean up old footer logo file if replaced
+    if (website.siteSettings.footerLogo && website.siteSettings.footerLogo !== footerLogo) {
+      deleteImageFile(website.siteSettings.footerLogo);
+    }
+    website.siteSettings.footerLogo = footerLogo;
+  }
   if (footerDescription !== undefined) website.siteSettings.footerDescription = footerDescription;
 
   await website.save();
@@ -553,7 +609,13 @@ export const updateOurStory = catchAsync(async (req: AuthRequest, res: Response)
   if (subTitle !== undefined) website.ourStory.subTitle = subTitle;
   if (percentage !== undefined) website.ourStory.percentage = percentage;
   if (suites !== undefined) website.ourStory.suites = suites;
-  if (images !== undefined) website.ourStory.images = images;
+  if (images !== undefined) {
+    // Clean up removed image files
+    const oldImages = website.ourStory.images || [];
+    const removedImages = oldImages.filter((img: string) => !images.includes(img));
+    deleteMultipleImageFiles(removedImages);
+    website.ourStory.images = images;
+  }
 
   await website.save();
 
@@ -631,7 +693,13 @@ export const updateFacility = catchAsync(async (req: AuthRequest, res: Response)
     throw new CustomError('Facility not found', 404);
   }
 
-  if (image !== undefined) facility.image = image;
+  if (image !== undefined) {
+    // Clean up old image file if replaced
+    if (facility.image && facility.image !== image) {
+      deleteImageFile(facility.image);
+    }
+    facility.image = image;
+  }
   if (title !== undefined) facility.title = title;
   if (subTitle !== undefined) facility.subTitle = subTitle;
 
@@ -658,6 +726,9 @@ export const deleteFacility = catchAsync(async (req: AuthRequest, res: Response)
   if (!facility) {
     throw new CustomError('Facility not found', 404);
   }
+
+  // Clean up image file
+  deleteImageFile(facility.image);
 
   website.facilities = website.facilities.filter(f => f._id?.toString() !== facilityId);
   await website.save();
@@ -731,7 +802,13 @@ export const updateReview = catchAsync(async (req: AuthRequest, res: Response): 
     throw new CustomError('Review not found', 404);
   }
 
-  if (avatar !== undefined) rev.avatar = avatar;
+  if (avatar !== undefined) {
+    // Clean up old avatar file if replaced
+    if (rev.avatar && rev.avatar !== avatar) {
+      deleteImageFile(rev.avatar);
+    }
+    rev.avatar = avatar;
+  }
   if (name !== undefined) rev.name = name;
   if (review !== undefined) rev.review = review;
   if (rating !== undefined) rev.rating = rating;
@@ -759,6 +836,9 @@ export const deleteReview = catchAsync(async (req: AuthRequest, res: Response): 
   if (!rev) {
     throw new CustomError('Review not found', 404);
   }
+
+  // Clean up avatar file
+  deleteImageFile(rev.avatar);
 
   website.reviews = website.reviews.filter(r => r._id?.toString() !== reviewId);
   await website.save();

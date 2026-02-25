@@ -12,11 +12,13 @@ export interface IRoom {
   basePrice: number;
   mainImage: string;
   discountPercentage?: string;
+  discountPrice: number;
   detailImages: string[];
   images: string[];
   amenities: string[];
   features: string[];
   servicesIncluded: string[];
+  popularFacilities: string[];
   isAvailable: boolean;
 }
 
@@ -70,6 +72,7 @@ export interface IHeroSection {
   image: string;
   text: string;
   subText: string;
+  detailsText: string;
   isActive: boolean;
 }
 
@@ -178,6 +181,11 @@ const RoomSchema = new Schema<IRoom>(
       required: [true, 'Base price is required'],
       min: [0, 'Price cannot be negative'],
     },
+    discountPrice: {
+      type: Number,
+      min: [0, 'Discount price cannot be negative'],
+      default: 0,
+    },
     mainImage: {
       type: String,
       default: '',
@@ -201,6 +209,10 @@ const RoomSchema = new Schema<IRoom>(
       trim: true,
     }],
     servicesIncluded: [{
+      type: String,
+      trim: true,
+    }],
+    popularFacilities: [{
       type: String,
       trim: true,
     }],
@@ -234,6 +246,12 @@ const HeroSectionSchema = new Schema<IHeroSection>(
       default: '',
       trim: true,
       maxlength: [1000, 'Hero sub text cannot exceed 1000 characters'],
+    },
+    detailsText: {
+      type: String,
+      default: '',
+      trim: true,
+      maxlength: [2000, 'Hero details text cannot exceed 2000 characters'],
     },
     isActive: {
       type: Boolean,

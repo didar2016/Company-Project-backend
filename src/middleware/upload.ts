@@ -97,3 +97,16 @@ export const getFilePath = (websiteId: string, filename: string): string => {
   const month = String(now.getMonth() + 1).padStart(2, '0');
   return path.join(`website-${websiteId}`, String(year), month, filename);
 };
+
+// Memory storage for website image uploads (processed manually in controller)
+const memoryUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: MAX_FILE_SIZE,
+    files: 20,
+  },
+  fileFilter,
+});
+
+export const uploadSingleMemory = memoryUpload.single('image');
+export const uploadMultipleMemory = memoryUpload.array('images', 20);

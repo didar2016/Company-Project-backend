@@ -1,8 +1,10 @@
 import { Response } from 'express';
 import path from 'path';
 import fs from 'fs';
+import { v4 as uuidv4 } from 'uuid';
 import { AuthRequest, catchAsync, CustomError, deleteFile as deleteFileUtil } from '../middleware';
-import { optimizeImage, resizeForGallery } from '../utils';
+import { optimizeImage, resizeForGallery, saveImageBuffer, sanitizeWebsiteName, getWebsiteUploadDir } from '../utils';
+import { Website } from '../models';
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || 'uploads';
 
@@ -134,6 +136,60 @@ export const deleteImage = catchAsync(async (req: AuthRequest, res: Response): P
   res.status(200).json({
     success: true,
     message: 'Image deleted successfully',
+  });
+});
+
+// Upload single image to website public folder
+export const uploadWebsiteImage = catchAsync(async (req: AuthRequest, res: Response): Promise<void> => {
+  if (!req.file) {
+    throw new CustomError('No file uploaded', 400);
+  }
+
+  const { websiteId } = req.body;
+  if (!websiteId) {
+    throw new CustomError('Website ID is required', 400);
+  }
+
+  const website = await Website.findById(websiteId);
+  if (!website) {
+    throw new CustomError('Website not found', 404);
+  }
+
+  const url = saveImageBuffer(req.file.buffer, website.name, req.file.originalname);
+
+  res.status(200).json({
+    success: true,
+    message: 'Image uploaded successfully',
+    data: { url },
+  });
+});
+
+// Upload multiple images to website public folder
+export const uploadWebsiteImages = catchAsync(async (req: AuthRequest, res: Response): Promise<void> => {
+  const files = req.files as Express.Multer.File[];
+
+  if (!files || files.length === 0) {
+    throw new CustomError('No files uploaded', 400);
+  }
+
+  const { websiteId } = req.body;
+  if (!websiteId) {
+    throw new CustomError('Website ID is required', 400);
+  }
+
+  const website = await Website.findById(websiteId);
+  if (!website) {
+    throw new CustomError('Website not found', 404);
+  }
+
+  const urls = files.map((file) =>
+    saveImageBuffer(file.buffer, website.name, file.originalname)
+  );
+
+  res.status(200).json({
+    success: true,
+    message: `${urls.length} images uploaded successfully`,
+    data: { urls },
   });
 });
 

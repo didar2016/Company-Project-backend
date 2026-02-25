@@ -5,8 +5,10 @@ import {
   uploadGalleryImages,
   deleteImage,
   listWebsiteImages,
+  uploadWebsiteImage,
+  uploadWebsiteImages,
 } from '../controllers';
-import { authenticate, authorize, uploadSingle, uploadMultiple } from '../middleware';
+import { authenticate, authorize, uploadSingle, uploadMultiple, uploadSingleMemory, uploadMultipleMemory } from '../middleware';
 
 const router = Router();
 
@@ -46,5 +48,21 @@ router.delete(
 
 // List website images
 router.get('/list/:websiteId', listWebsiteImages);
+
+// Upload single image to website public folder
+router.post(
+  '/website-image',
+  authorize('super_admin', 'admin'),
+  uploadSingleMemory,
+  uploadWebsiteImage
+);
+
+// Upload multiple images to website public folder
+router.post(
+  '/website-images',
+  authorize('super_admin', 'admin'),
+  uploadMultipleMemory,
+  uploadWebsiteImages
+);
 
 export default router;

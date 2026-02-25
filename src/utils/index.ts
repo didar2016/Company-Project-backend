@@ -13,3 +13,14 @@ export {
   getImageMetadata,
   resizeForGallery,
 } from './imageProcessor';
+
+export {
+  saveImageBuffer,
+  deleteImageFile,
+  deleteMultipleImageFiles,
+  deleteWebsiteFolder,
+  sanitizeWebsiteName,
+  getWebsiteUploadDir,
+  ensureDir,
+  PUBLIC_DIR,
+} from './fileStorage';
