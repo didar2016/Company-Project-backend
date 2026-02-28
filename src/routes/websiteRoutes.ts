@@ -27,6 +27,14 @@ import {
   addReview,
   updateReview,
   deleteReview,
+  getOffer,
+  updateOffer,
+  deleteOffer,
+  getContactInfo,
+  updateContactInfo,
+  getContactMessages,
+  toggleMessageRead,
+  deleteContactMessage,
 } from '../controllers';
 import { authenticate, authorize, checkWebsiteAccess } from '../middleware';
 
@@ -205,6 +213,21 @@ router.delete(
 );
 
 // ========================
+// Contact Info sub-routes
+// ========================
+
+// Get contact info
+router.get('/:websiteId/contact-info', checkWebsiteAccess, getContactInfo);
+
+// Update contact info
+router.put(
+  '/:websiteId/contact-info',
+  authorize('super_admin', 'admin'),
+  checkWebsiteAccess,
+  updateContactInfo
+);
+
+// ========================
 // Reviews sub-routes (embedded in website)
 // ========================
 
@@ -237,6 +260,52 @@ router.delete(
   authorize('super_admin', 'admin'),
   checkWebsiteAccess,
   deleteReview
+);
+
+// ========================
+// Offer sub-routes (embedded in website)
+// ========================
+
+// Get offer
+router.get('/:websiteId/offer', checkWebsiteAccess, getOffer);
+
+// Update/Upsert offer
+router.put(
+  '/:websiteId/offer',
+  authorize('super_admin', 'admin'),
+  checkWebsiteAccess,
+  updateOffer
+);
+
+// Delete offer
+router.delete(
+  '/:websiteId/offer',
+  authorize('super_admin', 'admin'),
+  checkWebsiteAccess,
+  deleteOffer
+);
+
+// ========================
+// Contact Messages sub-routes (stored in ContactMessage collection)
+// ========================
+
+// Get all contact messages for a website
+router.get('/:websiteId/contact-messages', checkWebsiteAccess, getContactMessages);
+
+// Toggle message read/unread
+router.patch(
+  '/:websiteId/contact-messages/:messageId/toggle-read',
+  authorize('super_admin', 'admin'),
+  checkWebsiteAccess,
+  toggleMessageRead
+);
+
+// Delete a contact message
+router.delete(
+  '/:websiteId/contact-messages/:messageId',
+  authorize('super_admin', 'admin'),
+  checkWebsiteAccess,
+  deleteContactMessage
 );
 
 export default router;

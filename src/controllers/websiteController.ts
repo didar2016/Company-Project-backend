@@ -499,6 +499,7 @@ export const getWebsiteByUniqueId = catchAsync(async (req: AuthRequest, res: Res
       ourStory: website.ourStory,
       facilities: website.facilities,
       reviews: website.reviews,
+      offer: website.offer,
       siteSettings: website.siteSettings,
       // Additional data that might be useful for the frontend
       totalRooms: website.rooms.filter(r => r.isAvailable).length,
@@ -740,6 +741,93 @@ export const deleteFacility = catchAsync(async (req: AuthRequest, res: Response)
 });
 
 // ========================
+// CONTACT INFO (embedded in hotelInfo.contact + hotelInfo.socialLinks)
+// ========================
+
+// Get contact info
+export const getContactInfo = catchAsync(async (req: AuthRequest, res: Response): Promise<void> => {
+  const websiteId = req.params.websiteId || req.websiteId;
+  const website = await Website.findById(websiteId);
+  if (!website) {
+    throw new CustomError('Website not found', 404);
+  }
+
+  const contactInfo = {
+    location: website.hotelInfo?.contact?.address || '',
+    email: website.hotelInfo?.contact?.email || '',
+    number: website.hotelInfo?.contact?.phone || '',
+    facebook: website.hotelInfo?.socialLinks?.facebook || '',
+    instagram: website.hotelInfo?.socialLinks?.instagram || '',
+    linkedin: website.hotelInfo?.socialLinks?.linkedin || '',
+  };
+
+  res.status(200).json({
+    success: true,
+    data: { contactInfo },
+  });
+});
+
+// Update contact info
+export const updateContactInfo = catchAsync(async (req: AuthRequest, res: Response): Promise<void> => {
+  const websiteId = req.params.websiteId || req.websiteId;
+  const { location, email, number, facebook, instagram, linkedin } = req.body;
+
+  const website = await Website.findById(websiteId);
+  if (!website) {
+    throw new CustomError('Website not found', 404);
+  }
+
+  // Initialize hotelInfo if it doesn't exist
+  if (!website.hotelInfo) {
+    (website as any).hotelInfo = {
+      title: '',
+      description: '',
+      contact: { phone: '', email: '', address: '', coordinates: { lat: 0, lng: 0 } },
+      socialLinks: {},
+      images: { banner: '', logo: '', gallery: [] },
+      amenities: [],
+      nearbyAttractions: [],
+      transportLinks: [],
+    };
+  }
+
+  if (!website.hotelInfo.contact) {
+    (website.hotelInfo as any).contact = { phone: '', email: '', address: '', coordinates: { lat: 0, lng: 0 } };
+  }
+
+  if (!website.hotelInfo.socialLinks) {
+    (website.hotelInfo as any).socialLinks = {};
+  }
+
+  // Update contact fields
+  if (location !== undefined) website.hotelInfo.contact.address = location;
+  if (email !== undefined) website.hotelInfo.contact.email = email;
+  if (number !== undefined) website.hotelInfo.contact.phone = number;
+
+  // Update social links
+  if (facebook !== undefined) website.hotelInfo.socialLinks.facebook = facebook;
+  if (instagram !== undefined) website.hotelInfo.socialLinks.instagram = instagram;
+  if (linkedin !== undefined) website.hotelInfo.socialLinks.linkedin = linkedin;
+
+  await website.save();
+
+  const contactInfo = {
+    location: website.hotelInfo.contact.address,
+    email: website.hotelInfo.contact.email,
+    number: website.hotelInfo.contact.phone,
+    facebook: website.hotelInfo.socialLinks.facebook || '',
+    instagram: website.hotelInfo.socialLinks.instagram || '',
+    linkedin: website.hotelInfo.socialLinks.linkedin || '',
+  };
+
+  res.status(200).json({
+    success: true,
+    message: 'Contact info updated successfully',
+    data: { contactInfo },
+  });
+});
+
+// ========================
 // REVIEWS CRUD (embedded in Website)
 // ========================
 
@@ -846,5 +934,82 @@ export const deleteReview = catchAsync(async (req: AuthRequest, res: Response): 
   res.status(200).json({
     success: true,
     message: 'Review deleted successfully',
+  });
+});
+
+// ========================
+// OFFER CRUD (embedded in Website)
+// ========================
+
+// Get offer
+export const getOffer = catchAsync(async (req: AuthRequest, res: Response): Promise<void> => {
+  const websiteId = req.params.websiteId || req.websiteId;
+  const website = await Website.findById(websiteId);
+  if (!website) {
+    throw new CustomError('Website not found', 404);
+  }
+
+  res.status(200).json({
+    success: true,
+    data: { offer: website.offer },
+  });
+});
+
+// Update offer (Upsert)
+export const updateOffer = catchAsync(async (req: AuthRequest, res: Response): Promise<void> => {
+  const websiteId = req.params.websiteId || req.websiteId;
+  const { title, subtitle, offer_available, offer_percentage, offer_image } = req.body;
+
+  const website = await Website.findById(websiteId);
+  if (!website) {
+    throw new CustomError('Website not found', 404);
+  }
+
+  if (!website.offer) {
+    website.offer = {} as any;
+  }
+
+  if (offer_image !== undefined) {
+    // Clean up old offer image file if replaced
+    if (website.offer.offer_image && website.offer.offer_image !== offer_image) {
+      deleteImageFile(website.offer.offer_image);
+    }
+    website.offer.offer_image = offer_image;
+  }
+  
+  if (title !== undefined) website.offer.title = title;
+  if (subtitle !== undefined) website.offer.subtitle = subtitle;
+  if (offer_available !== undefined) website.offer.offer_available = offer_available;
+  if (offer_percentage !== undefined) website.offer.offer_percentage = offer_percentage;
+
+  await website.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Offer updated successfully',
+    data: { offer: website.offer },
+  });
+});
+
+// Delete offer
+export const deleteOffer = catchAsync(async (req: AuthRequest, res: Response): Promise<void> => {
+  const websiteId = req.params.websiteId || req.websiteId;
+
+  const website = await Website.findById(websiteId);
+  if (!website) {
+    throw new CustomError('Website not found', 404);
+  }
+
+  if (website.offer && website.offer.offer_image) {
+    deleteImageFile(website.offer.offer_image);
+  }
+
+  // Reset offer
+  website.set('offer', undefined);
+  await website.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Offer deleted successfully',
   });
 });

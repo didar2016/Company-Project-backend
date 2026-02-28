@@ -48,6 +48,16 @@ export interface IReview {
   rating: number;
 }
 
+// Offer subdocument
+export interface IOffer {
+  _id: mongoose.Types.ObjectId;
+  title: string;
+  subtitle: string;
+  offer_available: boolean;
+  offer_percentage: number;
+  offer_image: string;
+}
+
 // Site Settings subdocument
 export interface ISiteSettings {
   logo: string;
@@ -129,6 +139,8 @@ export interface IWebsite extends Document {
   facilities: IFacility[];
   // Reviews section
   reviews: IReview[];
+  // Offer section
+  offer: IOffer;
   // Site settings (logo, footer)
   siteSettings: ISiteSettings;
   assignedAdmin: mongoose.Types.ObjectId;
@@ -342,6 +354,39 @@ const ReviewSchema = new Schema<IReview>(
   { _id: true }
 );
 
+const OfferSchema = new Schema<IOffer>(
+  {
+    title: {
+      type: String,
+      required: [true, 'Offer title is required'],
+      trim: true,
+      maxlength: [200, 'Title cannot exceed 200 characters'],
+    },
+    subtitle: {
+      type: String,
+      required: [true, 'Offer subtitle is required'],
+      trim: true,
+      maxlength: [500, 'Subtitle cannot exceed 500 characters'],
+    },
+    offer_available: {
+      type: Boolean,
+      required: [true, 'Offer availability is required'],
+      default: true,
+    },
+    offer_percentage: {
+      type: Number,
+      required: [true, 'Offer percentage is required'],
+      min: [0, 'Offer percentage cannot be negative'],
+      max: [100, 'Offer percentage cannot exceed 100'],
+    },
+    offer_image: {
+      type: String,
+      default: '',
+    },
+  },
+  { _id: true }
+);
+
 const WebsiteSchema = new Schema<IWebsite>(
   {
     uniqueId: {
@@ -414,6 +459,7 @@ const WebsiteSchema = new Schema<IWebsite>(
     ourStory: OurStorySchema,
     facilities: [FacilitySchema],
     reviews: [ReviewSchema],
+    offer: OfferSchema,
     siteSettings: {
       logo: { type: String, default: '' },
       footerLogo: { type: String, default: '' },
