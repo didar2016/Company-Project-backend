@@ -58,6 +58,15 @@ export interface IOffer {
   offer_image: string;
 }
 
+// Meeting subdocument
+export interface IMeeting {
+  _id: mongoose.Types.ObjectId;
+  title: string;
+  subtitle: string;
+  image: string;
+  available: boolean;
+}
+
 // Site Settings subdocument
 export interface ISiteSettings {
   logo: string;
@@ -74,7 +83,8 @@ export type HeroPageType =
   | 'room'
   | 'roomdetails'
   | 'location'
-  | 'dining';
+  | 'dining'
+  | 'meeting';
 
 export interface IHeroSection {
   _id: mongoose.Types.ObjectId;
@@ -141,6 +151,8 @@ export interface IWebsite extends Document {
   reviews: IReview[];
   // Offer section
   offer: IOffer;
+  // Meeting section
+  meeting: IMeeting;
   // Site settings (logo, footer)
   siteSettings: ISiteSettings;
   assignedAdmin: mongoose.Types.ObjectId;
@@ -241,7 +253,7 @@ const HeroSectionSchema = new Schema<IHeroSection>(
     page: {
       type: String,
       required: [true, 'Page type is required'],
-      enum: ['home', 'facilities', 'about', 'contact', 'room', 'roomdetails', 'location', 'dining'],
+      enum: ['home', 'facilities', 'about', 'contact', 'room', 'roomdetails', 'location', 'dining', 'meeting'],
     },
     image: {
       type: String,
@@ -387,6 +399,33 @@ const OfferSchema = new Schema<IOffer>(
   { _id: true }
 );
 
+const MeetingSchema = new Schema<IMeeting>(
+  {
+    title: {
+      type: String,
+      required: [true, 'Meeting title is required'],
+      trim: true,
+      maxlength: [200, 'Title cannot exceed 200 characters'],
+    },
+    subtitle: {
+      type: String,
+      required: [true, 'Meeting subtitle is required'],
+      trim: true,
+      maxlength: [500, 'Subtitle cannot exceed 500 characters'],
+    },
+    available: {
+      type: Boolean,
+      required: [true, 'Meeting availability is required'],
+      default: true,
+    },
+    image: {
+      type: String,
+      default: '',
+    },
+  },
+  { _id: true }
+);
+
 const WebsiteSchema = new Schema<IWebsite>(
   {
     uniqueId: {
@@ -460,6 +499,7 @@ const WebsiteSchema = new Schema<IWebsite>(
     facilities: [FacilitySchema],
     reviews: [ReviewSchema],
     offer: OfferSchema,
+    meeting: MeetingSchema,
     siteSettings: {
       logo: { type: String, default: '' },
       footerLogo: { type: String, default: '' },

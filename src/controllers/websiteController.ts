@@ -500,6 +500,7 @@ export const getWebsiteByUniqueId = catchAsync(async (req: AuthRequest, res: Res
       facilities: website.facilities,
       reviews: website.reviews,
       offer: website.offer,
+      meeting: website.meeting,
       siteSettings: website.siteSettings,
       // Additional data that might be useful for the frontend
       totalRooms: website.rooms.filter(r => r.isAvailable).length,
@@ -1011,5 +1012,81 @@ export const deleteOffer = catchAsync(async (req: AuthRequest, res: Response): P
   res.status(200).json({
     success: true,
     message: 'Offer deleted successfully',
+  });
+});
+
+// ========================
+// MEETING CRUD (embedded in Website)
+// ========================
+
+// Get meeting
+export const getMeeting = catchAsync(async (req: AuthRequest, res: Response): Promise<void> => {
+  const websiteId = req.params.websiteId || req.websiteId;
+  const website = await Website.findById(websiteId);
+  if (!website) {
+    throw new CustomError('Website not found', 404);
+  }
+
+  res.status(200).json({
+    success: true,
+    data: { meeting: website.meeting },
+  });
+});
+
+// Update meeting (Upsert)
+export const updateMeeting = catchAsync(async (req: AuthRequest, res: Response): Promise<void> => {
+  const websiteId = req.params.websiteId || req.websiteId;
+  const { title, subtitle, available, image } = req.body;
+
+  const website = await Website.findById(websiteId);
+  if (!website) {
+    throw new CustomError('Website not found', 404);
+  }
+
+  if (!website.meeting) {
+    website.meeting = {} as any;
+  }
+
+  if (image !== undefined) {
+    // Clean up old meeting image file if replaced
+    if (website.meeting.image && website.meeting.image !== image) {
+      deleteImageFile(website.meeting.image);
+    }
+    website.meeting.image = image;
+  }
+  
+  if (title !== undefined) website.meeting.title = title;
+  if (subtitle !== undefined) website.meeting.subtitle = subtitle;
+  if (available !== undefined) website.meeting.available = available;
+
+  await website.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Meeting details updated successfully',
+    data: { meeting: website.meeting },
+  });
+});
+
+// Delete meeting
+export const deleteMeeting = catchAsync(async (req: AuthRequest, res: Response): Promise<void> => {
+  const websiteId = req.params.websiteId || req.websiteId;
+
+  const website = await Website.findById(websiteId);
+  if (!website) {
+    throw new CustomError('Website not found', 404);
+  }
+
+  if (website.meeting && website.meeting.image) {
+    deleteImageFile(website.meeting.image);
+  }
+
+  // Reset meeting
+  website.set('meeting', undefined);
+  await website.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Meeting details deleted successfully',
   });
 });

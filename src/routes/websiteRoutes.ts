@@ -30,6 +30,9 @@ import {
   getOffer,
   updateOffer,
   deleteOffer,
+  getMeeting,
+  updateMeeting,
+  deleteMeeting,
   getContactInfo,
   updateContactInfo,
   getContactMessages,
@@ -283,6 +286,29 @@ router.delete(
   authorize('super_admin', 'admin'),
   checkWebsiteAccess,
   deleteOffer
+);
+
+// ========================
+// Meeting sub-routes (embedded in website)
+// ========================
+
+// Get meeting
+router.get('/:websiteId/meeting', checkWebsiteAccess, getMeeting);
+
+// Update/Upsert meeting
+router.put(
+  '/:websiteId/meeting',
+  authorize('super_admin', 'admin'),
+  checkWebsiteAccess,
+  updateMeeting
+);
+
+// Delete meeting
+router.delete(
+  '/:websiteId/meeting',
+  authorize('super_admin', 'admin'),
+  checkWebsiteAccess,
+  deleteMeeting
 );
 
 // ========================
