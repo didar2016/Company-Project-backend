@@ -4,8 +4,8 @@ export {
   verifyAccessToken,
   verifyRefreshToken,
   generateTokens,
-  TokenPayload,
 } from './jwt';
+export type { TokenPayload } from './jwt';
 
 export {
   optimizeImage,
